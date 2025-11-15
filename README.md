@@ -40,6 +40,9 @@ This application leverages the power of AI to automatically analyze network logs
 
 ## Getting Started:
 
+Installation:
+- Clone the repository: git clone [https://github.com/AugustGray/AI-Network-Visualizer.git]
+- Navigate to the project directory: cd AI-Network-Visualizer
 - Navigate to the project directory in your terminal.
 - Run `npm install`.
 - Start the development server with `npm run dev`.
