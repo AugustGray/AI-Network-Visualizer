@@ -45,4 +45,22 @@ Installation:
 - Start the development server with `npm run dev`.
 - Open your web browser and visit (Your App URL Here - usually http://127.0.0.1:3000).
 
-- Or visit the web page at 
+- Or visit the web page at [https://ai-network-visualizer.netlify.app/]
+
+## Privacy Notice
+
+We are committed to protecting your privacy and providing you with control over your data. This application is designed with a strong focus on user security and consent. Here's a breakdown of how we handle your information:
+
+### Data Handling & Permissions:
+
+* **API Keys:** Your API key (used for AI analysis) is only visible within your browser – this is a standard, secure approach. You are solely responsible for managing your key and any associated costs.
+
+* **LocalStorage (AI Settings):** The app stores your preferred AI provider and API key in your browser’s local storage. This data remains on your computer and isn't automatically transmitted to us. **However, please be aware that any malicious browser extension or script running on the same origin can potentially read this data in plain text.**
+
+* **File Upload:** When you upload a file, you grant the app explicit permission to access only that single selected file. The application cannot access any other files on your system.
+
+* **AI Analysis – Data Transmission:** When you use the AI analysis feature, the content of your uploaded file is sent to your chosen AI service (either locally via LM Studio or externally through Google/OpenAI). For local LLM usage, this data remains within your network. When using external APIs, it’s transmitted for processing. **We strongly recommend utilizing Local LLMs through LM Studio whenever possible. While we don't collect any data directly, even in a web app, the user’s API key is stored in the browser’s localStorage – making it vulnerable to potential security risks like plain text access by malicious extensions or network sniffing.**
+
+### Transparency & Control:
+
+We strive to minimize data collection and provide you with control over how your information is used. However, please understand that the core functionality of our AI analysis relies on sending user-provided data to an external service.

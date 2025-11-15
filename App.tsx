@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { analyzeNetworkLog } from './services/geminiService';
 import type { GraphData, LinkData, NodeData, AIConfig } from './types';
@@ -6,7 +7,8 @@ import NetworkGraph from './components/NetworkGraph';
 import AnalysisPanel from './components/AnalysisPanel';
 import Loader from './components/Loader';
 import SettingsModal from './components/SettingsModal';
-import { UploadIcon, PlusIcon, DownloadIcon, PencilIcon, GearIcon } from './components/Icons';
+import PrivacyNoticeModal from './components/PrivacyNoticeModal';
+import { UploadIcon, PlusIcon, DownloadIcon, PencilIcon, GearIcon, PrivacyIcon } from './components/Icons';
 
 const App: React.FC = () => {
   const [graphData, setGraphData] = useState<GraphData | null>(null);
@@ -16,6 +18,7 @@ const App: React.FC = () => {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isPrivacyNoticeOpen, setIsPrivacyNoticeOpen] = useState<boolean>(false);
   const [aiConfig, setAiConfig] = useState<AIConfig>(() => {
     try {
       const savedConfig = localStorage.getItem('aiConfig');
@@ -213,16 +216,26 @@ const App: React.FC = () => {
           </span>
           <h1 className="text-2xl font-bold text-gray-200">AI Network Visualizer</h1>
         </div>
-        <button
-          onClick={() => setIsSettingsOpen(true)}
-          className="p-2 rounded-full hover:bg-gray-700 transition-colors duration-200"
-          aria-label="Open settings"
-        >
-          <GearIcon className="w-6 h-6 text-gray-300" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsPrivacyNoticeOpen(true)}
+            className="p-2 rounded-full hover:bg-gray-700 transition-colors duration-200"
+            aria-label="Open privacy notice"
+          >
+            <PrivacyIcon className="w-6 h-6 text-gray-300" />
+          </button>
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 rounded-full hover:bg-gray-700 transition-colors duration-200"
+            aria-label="Open settings"
+          >
+            <GearIcon className="w-6 h-6 text-gray-300" />
+          </button>
+        </div>
       </header>
       
       {isSettingsOpen && <SettingsModal config={aiConfig} onConfigChange={setAiConfig} onClose={() => setIsSettingsOpen(false)} />}
+      {isPrivacyNoticeOpen && <PrivacyNoticeModal onClose={() => setIsPrivacyNoticeOpen(false)} />}
 
       <main className="flex-grow relative">
         {graphData && (
