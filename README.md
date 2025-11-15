@@ -29,9 +29,7 @@ This application leverages the power of AI to automatically analyze network logs
 
 ## Technical Details:
 
-- Dependencies: NodeJS, a locally installed AI model (Gemma 3 4B or Qwen VI 4B), LM Studio.
-- Installation: `npm install`
-- Running Locally: `npm run dev`
+- Dependencies: NodeJS, a locally installed AI model (Like Gemma 3 4B or Qwen VI 4B), LM Studio.
 - LM Studio Setup:
 	1. Install and launch LM Studio.
 	2. Activate the server.
@@ -42,8 +40,7 @@ This application leverages the power of AI to automatically analyze network logs
 
 Installation:
 - Clone the repository: git clone [https://github.com/AugustGray/AI-Network-Visualizer.git]
-- Navigate to the project directory: cd AI-Network-Visualizer
-- Navigate to the project directory in your terminal.
+- Navigate to the project directory: cd AI-Network-Visualizer.
 - Run `npm install`.
 - Start the development server with `npm run dev`.
 - Open your web browser and visit (Your App URL Here - usually http://127.0.0.1:3000).
