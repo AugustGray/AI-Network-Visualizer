@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { analyzeNetworkLog } from './services/geminiService';
 import type { GraphData, LinkData, NodeData, AIConfig } from './types';
@@ -19,6 +20,8 @@ const App: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isPrivacyNoticeOpen, setIsPrivacyNoticeOpen] = useState<boolean>(false);
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+
   const [aiConfig, setAiConfig] = useState<AIConfig>(() => {
     try {
       const savedConfig = localStorage.getItem('aiConfig');
@@ -98,6 +101,35 @@ const App: React.FC = () => {
       setIsLoading(false);
     }
   }, [aiConfig]);
+  
+  const handleLoadDemo = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    setGraphData(null);
+    setFileName("Demo Network Map");
+    setIsEditMode(false);
+
+    try {
+        const response = await fetch('/Network-Map-Demo.json');
+        if (!response.ok) {
+            throw new Error(`Failed to load demo file: ${response.statusText}`);
+        }
+        const data = await response.json();
+
+        if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.links)) {
+            throw new Error("Invalid network map JSON in demo file.");
+        }
+        
+        setGraphData(data as GraphData);
+
+    } catch (err) {
+        console.error(err);
+        setError(err instanceof Error ? err.message : 'An unknown error occurred while loading the demo.');
+        setGraphData(null);
+    } finally {
+        setIsLoading(false);
+    }
+  }, []);
 
   const handleMergeFileSelected = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -149,6 +181,22 @@ const App: React.FC = () => {
     });
   }, []);
 
+  const handleNodeAdd = () => {
+    const newNodeId = `new-device-${Date.now()}`;
+    const newNode: NodeData = {
+        id: newNodeId,
+        name: 'New Device',
+        role: 'Other',
+        x: 0,
+        y: 0,
+    };
+    setGraphData(prev => {
+        if (!prev) return null;
+        return { ...prev, nodes: [...prev.nodes, newNode] };
+    });
+    setExpandedNodes(prev => new Set(prev).add(newNodeId));
+  };
+
   const handleLinksUpdate = useCallback((sourceNodeId: string, newTargetIds: Set<string>) => {
     setGraphData(prevData => {
       if (!prevData) return null;
@@ -174,6 +222,7 @@ const App: React.FC = () => {
     setIsLoading(false);
     setFileName(null);
     setIsEditMode(false);
+    setExpandedNodes(new Set());
   };
 
   const handleDownload = () => {
@@ -205,6 +254,18 @@ const App: React.FC = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+  
+  const toggleNodeExpansion = (nodeId: string) => {
+    setExpandedNodes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(nodeId)) {
+        newSet.delete(nodeId);
+      } else {
+        newSet.add(nodeId);
+      }
+      return newSet;
+    });
   };
 
   return (
@@ -256,11 +317,14 @@ const App: React.FC = () => {
             isEditMode={isEditMode}
             onNodeUpdate={handleNodeUpdate}
             onLinksUpdate={handleLinksUpdate}
+            expandedNodes={expandedNodes}
+            onToggleNodeExpansion={toggleNodeExpansion}
+            onNodeAdd={handleNodeAdd}
           />}
 
         <div className="absolute inset-0 flex items-center justify-center p-4 z-10 pointer-events-none">
             <div className="pointer-events-auto">
-              {!graphData && !isLoading && !error && <FileUpload onFileSelect={handleFileSelect} />}
+              {!graphData && !isLoading && !error && <FileUpload onFileSelect={handleFileSelect} onLoadDemo={handleLoadDemo} />}
               
               {isLoading && <Loader fileName={fileName} />}
 

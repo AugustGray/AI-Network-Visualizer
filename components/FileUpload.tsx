@@ -1,12 +1,14 @@
 
+
 import React, { useState, useCallback } from 'react';
 import { UploadIcon } from './Icons';
 
 interface FileUploadProps {
   onFileSelect: (file: File) => void;
+  onLoadDemo: () => void;
 }
 
-const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
+const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, onLoadDemo }) => {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -63,6 +65,14 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
             <p className="text-gray-400 mt-1">or click to browse</p>
             <p className="text-xs text-gray-500 mt-4">Supports .txt, .log, and .json network maps</p>
         </label>
+      </div>
+       <div className="mt-4">
+        <button
+          onClick={onLoadDemo}
+          className="text-sm text-gray-400 hover:text-accent underline transition-colors"
+        >
+          Or load a demo network map
+        </button>
       </div>
     </div>
   );

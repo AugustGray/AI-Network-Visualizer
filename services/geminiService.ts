@@ -71,9 +71,62 @@ const responseSchema = {
     required: ["nodes", "links"]
 };
 
-function buildPrompt(fileContent: string, existingGraphData: GraphData | null): string {
-    const contextPrompt = existingGraphData
-        ? `
+/**
+ * A replacer function for JSON.stringify to remove properties injected by the d3 simulation
+ * and to simplify link objects, making the JSON clean for AI consumption.
+ */
+function cleanD3Properties(key: string, value: any) {
+    if (['source', 'target'].includes(key) && typeof value === 'object' && value !== null) {
+        return (value as NodeData).id; // Send only the ID for links
+    }
+    if (['x', 'y', 'vx', 'vy', 'fx', 'fy', 'index'].includes(key)) {
+        return undefined; // Remove d3 simulation properties
+    }
+    return value;
+}
+
+function buildPrompt(fileContent: string, existingGraphData: GraphData | null, config: AIConfig): string {
+    if (existingGraphData) {
+        // Use a more robust, algorithmic prompt for local models which may struggle with nuanced instructions.
+        if (config.provider === 'local') {
+            return `
+You are a data processing engine. Your SOLE task is to merge new network log data into an existing JSON network map.
+Your output MUST be a single, complete JSON object of the final merged map.
+You MUST follow this algorithm exactly.
+
+**ALGORITHM:**
+
+1.  **INITIALIZE:** Start with the provided "EXISTING MAP" as your base.
+2.  **PROCESS NEW DATA:** Analyze the "NEW LOG DATA" to identify devices and connections.
+3.  **MERGE DEVICES:** For each device found in the NEW LOG DATA:
+    a. **CHECK MAC ADDRESS:** If the device has a MAC address, search the EXISTING MAP for a node with the *exact same* \`macAddress\`.
+    b. **IF MAC MATCH FOUND:** This is the same device. **DO NOT CREATE A DUPLICATE NODE.** Instead, **UPDATE** the existing node with any new information (like a new IP, open ports, vendor, etc.).
+    c. **IF NO MAC MATCH:** This is a new device. **ADD** it as a new node to your map. **CRITICAL:** Use its MAC address as its \`id\`.
+    d. **NO MAC ADDRESS CASE:** If the device has no MAC address, use its IP address as the unique identifier to check for an existing node and to use as the \`id\`.
+4.  **MERGE CONNECTIONS:** Add any new connections (links) found in the NEW LOG DATA. Ensure link sources and targets use the correct node \`id\`s.
+5.  **FINAL OUTPUT:** Return the **ENTIRE, COMBINED** network map as a single JSON object. It must include all original devices and links plus all new/updated devices and links.
+
+**CRITICAL RULES:**
+-   Your output MUST be ONLY the final JSON object. No explanations or markdown.
+-   The MAC address is the primary key for identifying a device.
+-   Do not create duplicate nodes for the same physical device.
+
+--- EXISTING MAP ---
+${JSON.stringify(existingGraphData, cleanD3Properties, 2)}
+--- END EXISTING MAP ---
+
+--- NEW LOG DATA ---
+${fileContent.substring(0, 100000)}
+--- END NEW LOG DATA ---
+
+Now, provide the complete, merged JSON output adhering to the provided schema.
+The schema for the JSON object is as follows:
+${JSON.stringify(responseSchema, null, 2)}
+`;
+        }
+
+        // Standard, more nuanced prompt for powerful cloud models.
+        return `
 You are an expert network analyst acting as a stateful engine. You have been given an EXISTING network map and a NEW log file. Your critical task is to UPDATE the existing map with information from the new log file and return a single, complete, merged network map.
 
 **Crucial Rules for Merging & Device Identification:**
@@ -85,27 +138,22 @@ You are an expert network analyst acting as a stateful engine. You have been giv
 6.  **Return a Single, Complete Map:** Your final output **MUST** be a single JSON object representing the **ENTIRE COMBINED NETWORK**. This includes all original nodes and links, plus any new, correctly deduplicated nodes and links from the new data.
 
 --- EXISTING MAP ---
-${JSON.stringify(existingGraphData, (key, value) => {
-    // d3 adds circular references and extra properties; we clean them for the AI.
-    if (['source', 'target'].includes(key) && typeof value === 'object' && value !== null) {
-        return (value as NodeData).id; // Send only the ID for links
-    }
-    if (['x', 'y', 'vx', 'vy', 'fx', 'fy', 'index'].includes(key)) {
-        return undefined; // Remove d3 simulation properties
-    }
-    return value;
-}, 2)}
+${JSON.stringify(existingGraphData, cleanD3Properties, 2)}
 --- END EXISTING MAP ---
 
 Now, analyze the following new log data based on these strict rules and provide the complete, merged JSON output.
-`
-        : `
+The output must be a valid JSON object adhering to this schema:
+${JSON.stringify(responseSchema, null, 2)}
+--- NEW LOG DATA ---
+${fileContent.substring(0, 100000)}
+---
+`;
+    }
+
+    // This is the prompt for the initial analysis of a file.
+    return `
 You are an expert network analyst. Analyze the following network log file or text data. Your task is to identify all network devices, infer their connections, and determine their potential roles.
 Based on your analysis, generate a network map.
-`;
-
-    return `
-${contextPrompt}
 
 Your output **MUST** be a valid JSON object that strictly adheres to the provided schema. The JSON object should contain two keys: 'nodes' and 'links'. Do not add any extra text, explanations, or markdown formatting around the JSON object.
 
@@ -119,7 +167,7 @@ ${fileContent.substring(0, 100000)}
 
 Instructions for analysis:
 1.  **Identify Nodes:** Scan the text for devices.
-2.  **Assign IDs:** For each node's 'id', you **MUST** use its MAC address if available. If and only if the MAC address is not available, use its IP address as the 'id'. This rule is critical for correctly identifying unique devices.
+2.  **Assign IDs:** For each node's 'id', you **MUST** use its MAC address if available. If and only if the MAC address is not available, use its IP address as the 'id'. This is a critical rule for correctly identifying unique devices.
 3.  **Extract Details:** For each node, extract the following if available:
     - 'name': A descriptive hostname.
     - 'role': The device's function. Choose from: 'Router', 'Access Point', 'Switch', 'Server', 'Client', 'Smartphone', 'Tablet', 'Laptop', 'PC', 'Printer', 'Webcam', 'NAS', 'Firewall', 'ONT', 'Scanner', 'Other'. Be as specific as possible, especially for client types. If a client type cannot be determined, use 'Client'.
@@ -141,7 +189,7 @@ export async function analyzeNetworkLog(
     config: AIConfig
 ): Promise<GraphData> {
     
-    const prompt = buildPrompt(fileContent, existingGraphData);
+    const prompt = buildPrompt(fileContent, existingGraphData, config);
 
     if (config.provider === 'local') {
         const url = config.url || 'http://localhost:1234/v1/chat/completions';
@@ -173,8 +221,63 @@ export async function analyzeNetworkLog(
             } else if (jsonText.startsWith("```")) {
                  jsonText = jsonText.substring(3, jsonText.length - 3).trim();
             }
+            
+            try {
+                return JSON.parse(jsonText) as GraphData;
+            } catch (parseError) {
+                console.warn("Could not parse JSON from local LLM, attempting to repair.", parseError);
+                
+                let repairedJson = jsonText.trim();
+                
+                // Aggressively remove trailing commas that cause parsing errors.
+                repairedJson = repairedJson.replace(/,\s*([}\]])/g, '$1').replace(/,$/, '');
 
-            return JSON.parse(jsonText) as GraphData;
+                // Check for and close an unclosed string at the very end.
+                const quoteCount = (repairedJson.match(/(?<!\\)"/g) || []).length;
+                if (quoteCount % 2 !== 0) {
+                    repairedJson += '"';
+                }
+
+                const stack = [];
+                let inString = false;
+
+                for (let i = 0; i < repairedJson.length; i++) {
+                    const char = repairedJson[i];
+                    if (char === '"' && (i === 0 || repairedJson[i-1] !== '\\')) {
+                        inString = !inString;
+                    }
+                    if (inString) continue;
+
+                    if (char === '{' || char === '[') {
+                        stack.push(char);
+                    } else if (char === '}') {
+                        if (stack.length > 0 && stack[stack.length - 1] === '{') {
+                            stack.pop();
+                        }
+                    } else if (char === ']') {
+                        if (stack.length > 0 && stack[stack.length - 1] === '[') {
+                            stack.pop();
+                        }
+                    }
+                }
+
+                while (stack.length > 0) {
+                    const openChar = stack.pop();
+                    if (openChar === '{') repairedJson += '}';
+                    if (openChar === '[') repairedJson += ']';
+                }
+
+                try {
+                    const parsed = JSON.parse(repairedJson);
+                    console.log("Successfully parsed repaired JSON.");
+                    const nodes = parsed.nodes && Array.isArray(parsed.nodes) ? parsed.nodes : [];
+                    const links = parsed.links && Array.isArray(parsed.links) ? parsed.links : [];
+                    return { nodes, links };
+                } catch (repairError) {
+                    console.error("Failed to parse JSON even after repair attempt.", repairError);
+                    throw new Error("The local LLM returned incomplete or malformed JSON that could not be automatically repaired. Please check your model's output or context limit settings.");
+                }
+            }
 
         } catch (error) {
             console.error("Error calling Local LLM API:", error);

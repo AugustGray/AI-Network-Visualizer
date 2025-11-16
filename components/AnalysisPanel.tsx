@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import type { NodeData, LinkData } from '../types';
-import { ChevronDownIcon } from './Icons';
+import { ChevronDownIcon, PlusIcon } from './Icons';
 
 interface AnalysisPanelProps {
   nodes: NodeData[];
@@ -10,6 +10,9 @@ interface AnalysisPanelProps {
   isEditMode: boolean;
   onNodeUpdate: (node: NodeData) => void;
   onLinksUpdate: (sourceNodeId: string, targetIds: Set<string>) => void;
+  expandedNodes: Set<string>;
+  onToggleNodeExpansion: (nodeId: string) => void;
+  onNodeAdd: () => void;
 }
 
 const ROLES = ['Router', 'Access Point', 'Switch', 'Server', 'Client', 'Smartphone', 'Tablet', 'Laptop', 'PC', 'Printer', 'Webcam', 'NAS', 'Firewall', 'ONT', 'Scanner', 'Other'];
@@ -42,20 +45,25 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     isEditMode,
     onNodeUpdate,
     onLinksUpdate,
+    expandedNodes,
+    onToggleNodeExpansion,
+    onNodeAdd,
 }) => {
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const prevNodeCount = useRef(nodes.length);
 
-  const toggleNodeExpansion = (nodeId: string) => {
-    setExpandedNodes(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(nodeId)) {
-        newSet.delete(nodeId);
-      } else {
-        newSet.add(nodeId);
-      }
-      return newSet;
-    });
-  };
+  useEffect(() => {
+    if (listContainerRef.current && nodes.length > prevNodeCount.current) {
+        // A node was added, scroll to the bottom.
+        setTimeout(() => {
+            if (listContainerRef.current) {
+               listContainerRef.current.scrollTop = listContainerRef.current.scrollHeight;
+            }
+        }, 100); // Timeout allows the DOM to update before scrolling
+    }
+    prevNodeCount.current = nodes.length;
+  }, [nodes.length]);
+
 
   const nodeConnections = useMemo(() => {
     const connections = new Map<string, Set<string>>();
@@ -71,7 +79,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
   
   const sortedNodes = useMemo(() => {
     if (!nodes || nodes.length === 0 || !links) {
-      return [...nodes].sort((a, b) => a.name.localeCompare(b.name));
+      return [...nodes].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }
 
     const nodesMap = new Map(nodes.map(node => [node.id, node]));
@@ -162,10 +170,19 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
 
   return (
     <aside className="absolute top-4 right-4 bottom-24 w-80 flex-shrink-0 backdrop-blur-md bg-gray-900/50 rounded-lg shadow-lg flex flex-col overflow-hidden border border-gray-700/50 z-10">
-      <div className="p-3 border-b border-gray-700/50">
+      <div className="p-3 border-b border-gray-700/50 flex justify-between items-center">
         <h2 className="text-base font-bold text-gray-200">Identified Devices ({nodes.length})</h2>
+        {isEditMode && (
+          <button
+            onClick={onNodeAdd}
+            className="flex items-center gap-1.5 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs rounded-md transition-colors"
+          >
+            <PlusIcon className="w-4 h-4" />
+            Add Device
+          </button>
+        )}
       </div>
-      <div className="flex-grow overflow-y-auto p-2 space-y-2">
+      <div ref={listContainerRef} className="flex-grow overflow-y-auto p-2 space-y-2">
         {sortedNodes.map((node) => {
           const isExpanded = expandedNodes.has(node.id);
           const currentConnections = nodeConnections.get(node.id) || new Set();
@@ -194,7 +211,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
                   <p className="text-sm font-semibold text-gray-200 truncate" title={node.name}>{node.name}</p>
                 </div>
                 <button
-                  onClick={() => toggleNodeExpansion(node.id)}
+                  onClick={() => onToggleNodeExpansion(node.id)}
                   className="p-1 rounded-full hover:bg-gray-700/50 transition-colors flex-shrink-0"
                   aria-expanded={isExpanded}
                   aria-controls={`details-${node.id}`}
@@ -229,6 +246,16 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
                     {isEditMode ? (
                         <>
                             <div>
+                                <label className="text-xs text-gray-500 block mb-1">Name (Hostname)</label>
+                                <input 
+                                    type="text" 
+                                    value={node.name || ''} 
+                                    onChange={(e) => onNodeUpdate({ ...node, name: e.target.value })} 
+                                    className="w-full bg-gray-700 border border-gray-600 text-gray-200 text-xs rounded-md p-1.5 focus:ring-accent focus:border-accent" 
+                                    placeholder="e.g., My-Router"
+                                />
+                            </div>
+                            <div>
                                 <label className="text-xs text-gray-500 block mb-1">Role</label>
                                 <select value={node.role} onChange={(e) => onNodeUpdate({ ...node, role: e.target.value })} className="w-full bg-gray-700 border border-gray-600 text-gray-200 text-xs rounded-md p-1.5 focus:ring-accent focus:border-accent">
                                     {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
@@ -243,7 +270,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
                             <div>
                                 <label className="text-xs text-gray-500 block mb-1">Connections</label>
                                 <div className="max-h-32 overflow-y-auto space-y-1 p-2 bg-gray-900/50 rounded-md">
-                                    {nodes.filter(n => n.id !== node.id).sort((a,b) => a.name.localeCompare(b.name)).map(otherNode => (
+                                    {nodes.filter(n => n.id !== node.id).sort((a,b) => (a.name || '').localeCompare(b.name || '')).map(otherNode => (
                                     <div key={otherNode.id} className="flex items-center">
                                         <input type="checkbox" id={`conn-${node.id}-${otherNode.id}`} checked={currentConnections.has(otherNode.id)} onChange={(e) => handleConnectionChange(otherNode.id, e.target.checked)} className="w-4 h-4 text-accent bg-gray-700 border-gray-600 rounded focus:ring-accent"/>
                                         <label htmlFor={`conn-${node.id}-${otherNode.id}`} className="ml-2 text-xs text-gray-300 truncate">{otherNode.name}</label>

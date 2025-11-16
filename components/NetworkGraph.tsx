@@ -115,7 +115,8 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, hoveredNodeId, setHov
         // Toggle selection on tap/click using a functional update
         setHoveredNodeId(prevId => (d.id === prevId ? null : d.id));
       })
-      .call(drag(simulation) as any);
+      // FIX: Correctly type the d3 drag behavior and remove `as any` to fix type inference issues.
+      .call(drag(simulation));
 
     // Hover ring
     node.append("circle")
@@ -180,24 +181,24 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, hoveredNodeId, setHov
   }, [hoveredNodeId]);
   
   const drag = (simulation: d3.Simulation<d3.SimulationNodeDatum, undefined>) => {
-    function dragstarted(event: d3.D3DragEvent<Element, NodeData, NodeData>, d: NodeData) {
+    function dragstarted(event: d3.D3DragEvent<SVGGElement, NodeData, NodeData>, d: NodeData) {
       if (!event.active) simulation.alphaTarget(0.3).restart();
       d.fx = d.x;
       d.fy = d.y;
     }
     
-    function dragged(event: d3.D3DragEvent<Element, NodeData, NodeData>, d: NodeData) {
+    function dragged(event: d3.D3DragEvent<SVGGElement, NodeData, NodeData>, d: NodeData) {
       d.fx = event.x;
       d.fy = event.y;
     }
     
-    function dragended(event: d3.D3DragEvent<Element, NodeData, NodeData>, d: NodeData) {
+    function dragended(event: d3.D3DragEvent<SVGGElement, NodeData, NodeData>, d: NodeData) {
       if (!event.active) simulation.alphaTarget(0);
       d.fx = null;
       d.fy = null;
     }
     
-    return d3.drag<Element, NodeData>()
+    return d3.drag<SVGGElement, NodeData>()
         .on("start", dragstarted)
         .on("drag", dragged)
         .on("end", dragended);
