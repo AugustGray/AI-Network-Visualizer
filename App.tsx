@@ -10,6 +10,7 @@ import Loader from './components/Loader';
 import SettingsModal from './components/SettingsModal';
 import PrivacyNoticeModal from './components/PrivacyNoticeModal';
 import { UploadIcon, PlusIcon, DownloadIcon, PencilIcon, GearIcon, PrivacyIcon } from './components/Icons';
+import './nerd-font-icons.css';
 
 const demoData: GraphData = {
   "nodes": [

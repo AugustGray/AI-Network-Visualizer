@@ -29,24 +29,24 @@ const roleColors: { [key: string]: string } = {
     'default': '#a0a0a0',
 };
 
-const roleIcons: { [key: string]: { class: string; fallback: string } } = {
-  'Server': { class: 'nf-fa-server', fallback: '' },
-  'Router': { class: 'nf-md-access_point', fallback: '󰀃' },
-  'Access Point': { class: 'nf-md-access_point', fallback: '󰀃' },
-  'ONT': { class: 'nf-md-web', fallback: '󰖟' },
-  'Firewall': { class: 'nf-md-wall_fire', fallback: '󱨑' },
-  'Printer': { class: 'nf-md-printer', fallback: '󰐪' },
-  'Smartphone': { class: 'nf-fa-mobile_phone', fallback: '' },
-  'Tablet': { class: 'nf-fa-tablet_screen_button', fallback: '' },
-  'Laptop': { class: 'nf-fa-laptop', fallback: '' },
-  'PC': { class: 'nf-fa-desktop', fallback: '' },
-  'Switch': { class: 'nf-md-switch', fallback: '󰓤' },
-  'Webcam': { class: 'nf-md-webcam', fallback: '󰖠' },
-  'NAS': { class: 'nf-md-nas', fallback: '󰣳' },
-  'Scanner': { class: 'nf-md-line_scan', fallback: '󰘤' },
-  'Client': { class: 'nf-weather-na', fallback: '' },
-  'Other': { class: 'nf-weather-na', fallback: '' },
-  'default': { class: 'nf-weather-na', fallback: '' }
+const roleIcons: { [key: string]: string } = {
+  'Server': '',
+  'Router': '󰀃',
+  'Access Point': '󰀃',
+  'ONT': '󰖟',
+  'Firewall': '󱨑',
+  'Printer': '󰐪',
+  'Smartphone': '',
+  'Tablet': '',
+  'Laptop': '',
+  'PC': '',
+  'Switch': '󰓤',
+  'Webcam': '󰖠',
+  'NAS': '󰣳',
+  'Scanner': '󰘤',
+  'Client': '', // Fallback
+  'Other': '',
+  'default': ''
 };
 
 const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, hoveredNodeId, setHoveredNodeId }) => {
@@ -129,21 +129,13 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, hoveredNodeId, setHov
         .style("pointer-events", "none")
         .style("transition", "stroke-opacity 0.2s ease-in-out");
 
-    // Icon with CSS class and fallback
     node.append("text")
-        .attr("class", d => {
-          const icon = roleIcons[d.role] || roleIcons['default'];
-          return icon.class;
-        })
         .style("font-family", "'FiraCode Nerd Font', monospace")
         .style("font-size", "16px")
         .attr("text-anchor", "middle")
         .attr("dominant-baseline", "central")
         .attr("fill", d => roleColors[d.role] || roleColors['default'])
-        .text(d => {
-          const icon = roleIcons[d.role] || roleIcons['default'];
-          return icon.fallback;
-        });
+        .text(d => roleIcons[d.role] || roleIcons['default']);
 
 
     node.append("text")
